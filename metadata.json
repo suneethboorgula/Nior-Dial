@@ -1,0 +1,6 @@
+{
+  "name": "Noir Dial",
+  "description": "Minimalist OLED dark-mode default phone and dialer app with customizable full-screen Contact Posters, T9 search, and Telecom multi-call management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
