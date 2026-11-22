@@ -85,11 +85,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val filteredContacts = if (search.isBlank()) {
       allContacts
     } else {
-      val q = search.trim().lowercase()
       allContacts.filter { contact ->
-        contact.displayName.lowercase().contains(q) ||
-          contact.phoneNumbers.any { it.contains(q) } ||
-          PhoneNumberFormatter.matchesT9OrDigits(contact.displayName, contact.phoneNumbers, q)
+        val config = configs[contact.lookupKey]
+          ?: contact.phoneNumbers.firstOrNull()?.let { configs[PhoneNumberFormatter.matchKey(it)] }
+        PhoneNumberFormatter.matchesContactSearch(
+          displayName = contact.displayName,
+          phoneNumbers = contact.phoneNumbers,
+          email = contact.email,
+          query = search,
+          extraName = config?.customCallerName,
+          extraNumber = config?.customCallerNumber,
+        )
       }
     }
 

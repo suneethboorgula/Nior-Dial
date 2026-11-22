@@ -33,6 +33,43 @@ class ExampleRobolectricTest {
     assertTrue(PhoneNumberFormatter.matchesT9OrDigits("Elena Vance", listOf("+15551234567"), "38"))
     assertTrue(PhoneNumberFormatter.matchesT9OrDigits("Elena Vance", listOf("+15551234567"), "1234"))
     assertFalse(PhoneNumberFormatter.matchesT9OrDigits("Elena Vance", listOf("+15551234567"), "9999"))
+    assertFalse(PhoneNumberFormatter.matchesT9OrDigits("Bob Smith", listOf("+15550001111"), "elena"))
+  }
+
+  @Test
+  fun `contact search filters by name email and phone digits accurately`() {
+    assertTrue(
+      PhoneNumberFormatter.matchesContactSearch(
+        displayName = "Elena Vance",
+        phoneNumbers = listOf("+1 (415) 890-4321"),
+        email = "elena@noir.app",
+        query = "vance",
+      ),
+    )
+    assertFalse(
+      PhoneNumberFormatter.matchesContactSearch(
+        displayName = "Marcus Cole",
+        phoneNumbers = listOf("+1 (212) 555-0199"),
+        email = "marcus@noir.app",
+        query = "vance",
+      ),
+    )
+    assertTrue(
+      PhoneNumberFormatter.matchesContactSearch(
+        displayName = "Elena Vance",
+        phoneNumbers = listOf("+14158904321"),
+        email = null,
+        query = "415 890",
+      ),
+    )
+    assertTrue(
+      PhoneNumberFormatter.matchesContactSearch(
+        displayName = "Elena Vance",
+        phoneNumbers = listOf("+14158904321"),
+        email = "elena@noir.app",
+        query = "@noir",
+      ),
+    )
   }
 
   @Test

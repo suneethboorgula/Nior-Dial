@@ -75,6 +75,7 @@ fun RecentsScreen(
   onBack: () -> Unit,
   onRequestCallLogPermission: () -> Unit,
   modifier: Modifier = Modifier,
+  applyStatusBarsPadding: Boolean = true,
 ) {
   var showMissedOnly by remember { mutableStateOf(false) }
 
@@ -90,7 +91,7 @@ fun RecentsScreen(
     modifier = modifier
       .fillMaxSize()
       .background(OledBlack)
-      .statusBarsPadding(),
+      .then(if (applyStatusBarsPadding) Modifier.statusBarsPadding() else Modifier),
     contentAlignment = Alignment.TopCenter,
   ) {
     Column(

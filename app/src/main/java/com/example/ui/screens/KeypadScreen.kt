@@ -92,6 +92,7 @@ fun KeypadScreen(
   onRequestDefaultDialer: () -> Unit,
   onRequestPermissions: () -> Unit,
   modifier: Modifier = Modifier,
+  applyStatusBarsPadding: Boolean = true,
 ) {
   val haptics = LocalHapticFeedback.current
 
@@ -99,7 +100,7 @@ fun KeypadScreen(
     modifier = modifier
       .fillMaxSize()
       .background(OledBlack)
-      .statusBarsPadding()
+      .then(if (applyStatusBarsPadding) Modifier.statusBarsPadding() else Modifier)
       .navigationBarsPadding(),
     contentAlignment = Alignment.TopCenter,
   ) {

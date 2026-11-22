@@ -88,6 +88,7 @@ fun ContactsScreen(
   onBack: () -> Unit,
   onRequestContactsPermission: () -> Unit,
   modifier: Modifier = Modifier,
+  applyStatusBarsPadding: Boolean = true,
 ) {
   var showAddSheet by remember { mutableStateOf(false) }
 
@@ -99,7 +100,7 @@ fun ContactsScreen(
     modifier = modifier
       .fillMaxSize()
       .background(OledBlack)
-      .statusBarsPadding(),
+      .then(if (applyStatusBarsPadding) Modifier.statusBarsPadding() else Modifier),
     contentAlignment = Alignment.TopCenter,
   ) {
     Column(
@@ -163,8 +164,13 @@ fun ContactsScreen(
         color = PureWhite,
       )
       Spacer(modifier = Modifier.height(4.dp))
+      val countLabel = if (uiState.contactsSearchQuery.isBlank()) {
+        "${uiState.contacts.size} Contacts"
+      } else {
+        "${uiState.filteredContacts.size} of ${uiState.contacts.size} Contacts"
+      }
       Text(
-        text = "${uiState.contacts.size} Contacts",
+        text = countLabel,
         style = MaterialTheme.typography.bodyMedium,
         color = MutedSlate,
       )

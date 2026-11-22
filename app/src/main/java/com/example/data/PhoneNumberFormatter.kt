@@ -52,8 +52,9 @@ object PhoneNumberFormatter {
   }
 
   fun matchesT9OrDigits(displayName: String, phoneNumbers: List<String>, query: String): Boolean {
+    if (query.isBlank()) return true
     val cleanQuery = query.filter { it.isDigit() || it == '*' || it == '#' }
-    if (cleanQuery.isEmpty()) return true
+    if (cleanQuery.isEmpty()) return false
 
     // 1. Direct phone digit match
     val numberMatch = phoneNumbers.any { number ->
@@ -76,6 +77,36 @@ object PhoneNumberFormatter {
     if (words.size >= cleanQuery.length) {
       val initialsT9 = words.mapNotNull { it.firstOrNull()?.let(::charToT9Digit) }.joinToString("")
       if (initialsT9.startsWith(cleanQuery)) return true
+    }
+
+    return false
+  }
+
+  fun matchesContactSearch(
+    displayName: String,
+    phoneNumbers: List<String>,
+    email: String?,
+    query: String,
+    extraName: String? = null,
+    extraNumber: String? = null,
+  ): Boolean {
+    val q = query.trim()
+    if (q.isEmpty()) return true
+
+    if (displayName.contains(q, ignoreCase = true)) return true
+    if (!extraName.isNullOrBlank() && extraName.contains(q, ignoreCase = true)) return true
+    if (!email.isNullOrBlank() && email.contains(q, ignoreCase = true)) return true
+
+    val allNumbers = if (!extraNumber.isNullOrBlank()) phoneNumbers + extraNumber else phoneNumbers
+    if (allNumbers.any { it.contains(q, ignoreCase = true) }) return true
+
+    val queryDigits = q.filter { it.isDigit() || it == '*' || it == '#' }
+    if (queryDigits.isNotEmpty() && q.none { it.isLetter() }) {
+      val digitMatch = allNumbers.any { number ->
+        val normalized = number.filter { it.isDigit() || it == '*' || it == '#' }
+        normalized.contains(queryDigits)
+      }
+      if (digitMatch) return true
     }
 
     return false

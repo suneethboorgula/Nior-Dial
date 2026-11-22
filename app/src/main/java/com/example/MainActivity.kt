@@ -9,22 +9,29 @@ import android.os.Bundle
 import android.telecom.TelecomManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Call
@@ -44,11 +51,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -68,14 +79,15 @@ import com.example.ui.screens.PosterCallPreviewScreen
 import com.example.ui.screens.RecentsScreen
 import com.example.ui.theme.CallGreen
 import com.example.ui.theme.CharcoalSurface
+import com.example.ui.theme.ElevatedCardBorder
+import com.example.ui.theme.MutedSlate
 import com.example.ui.theme.NoirDialTheme
 import com.example.ui.theme.OledBlack
 import com.example.ui.theme.PureWhite
+import kotlinx.coroutines.launch
 
 object DialerRoutes {
   const val ROUTE_KEYPAD = "keypad"
-  const val ROUTE_CONTACTS = "contacts"
-  const val ROUTE_RECENTS = "recents"
   const val ROUTE_POSTER_PROFILE = "poster_profile?lookup={lookup}&name={name}&number={number}"
   const val ROUTE_POSTER_CALL_PREVIEW = "poster_call_preview?lookup={lookup}&name={name}&number={number}"
 
@@ -247,99 +259,180 @@ private fun NoirDialAppContent(
       modifier = Modifier.fillMaxSize(),
     ) {
       composable(DialerRoutes.ROUTE_KEYPAD) {
-        KeypadScreen(
-          uiState = uiState,
-          onDigitPress = viewModel::appendDigit,
-          onBackspace = viewModel::backspaceDigit,
-          onClearAll = viewModel::clearDialedNumber,
-          onCallClick = { number -> initiateCallOrPromptRole(number) },
-          onOpenPoster = { match ->
-            navController.navigate(
-              DialerRoutes.posterProfileRoute(
-                lookupKey = match.contact?.lookupKey,
-                name = match.displayName,
-                number = match.phoneNumber,
-              ),
-            )
-          },
-          onOpenCallPreview = {
-            navController.navigate(
-              DialerRoutes.posterCallPreviewRoute(
-                lookupKey = PosterConfigRepository.DEMO_POSTER_KEY,
-                name = "Elena Vance",
-                number = "+1 415 890 4321",
-              ),
-            )
-          },
-          onNavigateRecents = {
-            navController.navigate(DialerRoutes.ROUTE_RECENTS) {
-              launchSingleTop = true
-            }
-          },
-          onNavigateContacts = {
-            navController.navigate(DialerRoutes.ROUTE_CONTACTS) {
-              launchSingleTop = true
-            }
-          },
-          onRequestDefaultDialer = {
-            onRequestRoleDialer { intent ->
-              runCatching { roleLauncher.launch(intent) }.onFailure {
-                viewModel.showMessage("Open system Settings > Default Apps > Phone to select Noir Dial")
+        val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
+        val coroutineScope = rememberCoroutineScope()
+        val focusManager = LocalFocusManager.current
+
+        LaunchedEffect(dialEvent) {
+          if (dialEvent > 0 && pagerState.currentPage != 1) {
+            pagerState.animateScrollToPage(1)
+          }
+        }
+
+        LaunchedEffect(pagerState.currentPage) {
+          if (pagerState.currentPage != 2) {
+            focusManager.clearFocus()
+          }
+        }
+
+        BackHandler(enabled = pagerState.currentPage != 1) {
+          coroutineScope.launch {
+            pagerState.animateScrollToPage(1)
+          }
+        }
+
+        Column(
+          modifier = Modifier
+            .fillMaxSize()
+            .background(OledBlack)
+            .statusBarsPadding(),
+        ) {
+          // Swipe & tap page indicator: Recents (0) <-> Dial (1) <-> Contacts (2)
+          val pageLabels = listOf("Recents", "Dial", "Contacts")
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(top = 6.dp, bottom = 2.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Row(
+              modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(CharcoalSurface)
+                .border(1.dp, ElevatedCardBorder, RoundedCornerShape(20.dp))
+                .padding(3.dp),
+              horizontalArrangement = Arrangement.spacedBy(2.dp),
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              pageLabels.forEachIndexed { pageIndex, label ->
+                val selected = pagerState.currentPage == pageIndex
+                Box(
+                  modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (selected) PureWhite else CharcoalSurface)
+                    .clickable {
+                      coroutineScope.launch {
+                        pagerState.animateScrollToPage(pageIndex)
+                      }
+                    }
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                    .testTag("pager_tab_${label.lowercase()}"),
+                ) {
+                  Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (selected) OledBlack else MutedSlate,
+                  )
+                }
               }
             }
-          },
-          onRequestPermissions = {
-            permissionLauncher.launch(permissionsToRequest)
-          },
-        )
-      }
+          }
 
-      composable(DialerRoutes.ROUTE_CONTACTS) {
-        ContactsScreen(
-          uiState = uiState,
-          onSearchChange = viewModel::setContactsSearchQuery,
-          onContactClick = { contact ->
-            navController.navigate(
-              DialerRoutes.posterProfileRoute(
-                lookupKey = contact.lookupKey,
-                name = contact.displayName,
-                number = contact.phoneNumbers.firstOrNull().orEmpty(),
-              ),
-            )
-          },
-          onCreateContact = viewModel::createNewContact,
-          onNavigateKeypad = {
-            navController.popBackStack(DialerRoutes.ROUTE_KEYPAD, inclusive = false)
-          },
-          onBack = { navController.popBackStack() },
-          onRequestContactsPermission = {
-            permissionLauncher.launch(permissionsToRequest)
-          },
-        )
-      }
+          HorizontalPager(
+            state = pagerState,
+            beyondViewportPageCount = 1,
+            modifier = Modifier
+              .weight(1f)
+              .fillMaxWidth(),
+          ) { page ->
+            when (page) {
+              0 -> RecentsScreen(
+                uiState = uiState,
+                onCallClick = { number -> initiateCallOrPromptRole(number) },
+                onViewPoster = { entry ->
+                  val matched = viewModel.resolveContactByLookupOrNumber(null, entry.number)
+                  navController.navigate(
+                    DialerRoutes.posterProfileRoute(
+                      lookupKey = matched?.lookupKey,
+                      name = matched?.displayName ?: entry.cachedName ?: entry.number,
+                      number = entry.number,
+                    ),
+                  )
+                },
+                onNavigateKeypad = {
+                  coroutineScope.launch { pagerState.animateScrollToPage(1) }
+                },
+                onBack = {
+                  coroutineScope.launch { pagerState.animateScrollToPage(1) }
+                },
+                onRequestCallLogPermission = {
+                  permissionLauncher.launch(permissionsToRequest)
+                },
+                applyStatusBarsPadding = false,
+              )
 
-      composable(DialerRoutes.ROUTE_RECENTS) {
-        RecentsScreen(
-          uiState = uiState,
-          onCallClick = { number -> initiateCallOrPromptRole(number) },
-          onViewPoster = { entry ->
-            val matched = viewModel.resolveContactByLookupOrNumber(null, entry.number)
-            navController.navigate(
-              DialerRoutes.posterProfileRoute(
-                lookupKey = matched?.lookupKey,
-                name = matched?.displayName ?: entry.cachedName ?: entry.number,
-                number = entry.number,
-              ),
-            )
-          },
-          onNavigateKeypad = {
-            navController.popBackStack(DialerRoutes.ROUTE_KEYPAD, inclusive = false)
-          },
-          onBack = { navController.popBackStack() },
-          onRequestCallLogPermission = {
-            permissionLauncher.launch(permissionsToRequest)
-          },
-        )
+              1 -> KeypadScreen(
+                uiState = uiState,
+                onDigitPress = viewModel::appendDigit,
+                onBackspace = viewModel::backspaceDigit,
+                onClearAll = viewModel::clearDialedNumber,
+                onCallClick = { number -> initiateCallOrPromptRole(number) },
+                onOpenPoster = { match ->
+                  navController.navigate(
+                    DialerRoutes.posterProfileRoute(
+                      lookupKey = match.contact?.lookupKey,
+                      name = match.displayName,
+                      number = match.phoneNumber,
+                    ),
+                  )
+                },
+                onOpenCallPreview = {
+                  navController.navigate(
+                    DialerRoutes.posterCallPreviewRoute(
+                      lookupKey = PosterConfigRepository.DEMO_POSTER_KEY,
+                      name = "Elena Vance",
+                      number = "+1 415 890 4321",
+                    ),
+                  )
+                },
+                onNavigateRecents = {
+                  coroutineScope.launch { pagerState.animateScrollToPage(0) }
+                },
+                onNavigateContacts = {
+                  coroutineScope.launch { pagerState.animateScrollToPage(2) }
+                },
+                onRequestDefaultDialer = {
+                  onRequestRoleDialer { intent ->
+                    runCatching { roleLauncher.launch(intent) }.onFailure {
+                      viewModel.showMessage("Open system Settings > Default Apps > Phone to select Noir Dial")
+                    }
+                  }
+                },
+                onRequestPermissions = {
+                  permissionLauncher.launch(permissionsToRequest)
+                },
+                applyStatusBarsPadding = false,
+              )
+
+              else -> ContactsScreen(
+                uiState = uiState,
+                onSearchChange = viewModel::setContactsSearchQuery,
+                onContactClick = { contact ->
+                  navController.navigate(
+                    DialerRoutes.posterProfileRoute(
+                      lookupKey = contact.lookupKey,
+                      name = contact.displayName,
+                      number = contact.phoneNumbers.firstOrNull().orEmpty(),
+                    ),
+                  )
+                },
+                onCreateContact = viewModel::createNewContact,
+                onNavigateKeypad = {
+                  coroutineScope.launch { pagerState.animateScrollToPage(1) }
+                },
+                onBack = {
+                  coroutineScope.launch { pagerState.animateScrollToPage(1) }
+                },
+                onRequestContactsPermission = {
+                  permissionLauncher.launch(permissionsToRequest)
+                },
+                applyStatusBarsPadding = false,
+              )
+            }
+          }
+        }
       }
 
       composable(
